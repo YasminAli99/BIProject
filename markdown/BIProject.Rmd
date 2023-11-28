@@ -1,0 +1,158 @@
+---
+title: "BIProject"
+author: "Yasmin Choma"
+date: "2023-11-28"
+output: md_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+DESCRIPTIVE STATISTICS
+```{r code}
+library(readr)
+library(mice)
+
+library(readxl)
+diabetes_prediction_dataset <- read_excel("C:/Users/User/github-classroom/BIProject/data/diabetes_prediction_dataset.xlsx")
+
+
+dim(diabetes_prediction_dataset)
+
+sapply(diabetes_prediction_dataset, class)
+
+
+diabetes_prediction_frequencies <- table(diabetes_prediction_dataset$gender)
+
+diabetes_prediction_dataset_freq <- diabetes_prediction_dataset$smoking_history
+cbind(frequency = table(diabetes_prediction_dataset_freq),
+      percentage = prop.table(table(diabetes_prediction_dataset_freq)) * 100)
+
+
+diabetes_prediction_dataset_mode <- names(table(diabetes_prediction_dataset$gender))[
+  which(table(diabetes_prediction_dataset$gender) ==
+          max(table(diabetes_prediction_dataset$gender)))
+]
+print(diabetes_prediction_dataset_mode)
+
+
+summary(diabetes_prediction_dataset)
+
+sapply(diabetes_prediction_dataset[, c(2, 3, 6, 7, 8, 9)], sd)
+
+sapply(diabetes_prediction_dataset[, c(2, 3, 6, 7, 8, 9)], var)
+
+library(e1071)
+
+sapply(diabetes_prediction_dataset[, 6:9],  kurtosis, type = 2)
+
+sapply(diabetes_prediction_dataset[, 6:9],  skewness, type = 2)
+```
+
+
+STATISTICAL TEST ANOVA
+```{r ANOVA}
+diabetes_prediction_dataset_one_way_anova <- aov(age ~ diabetes, data = diabetes_prediction_dataset)
+summary(diabetes_prediction_dataset_one_way_anova)
+```
+
+UNVARIATE AND MULTIVARIATE PLOTS
+```{r}
+
+library(corrplot)
+corrplot(cor(diabetes_prediction_dataset[, 6:9]), method = "circle")
+```
+MISSING VALUES, DATA IMPUTATION AND DATA TRANSFORMATION
+```{r}
+
+library(dplyr)
+
+any(is.na(diabetes_prediction_dataset))
+
+```
+TRAINING THE MODEL
+```{r}
+library(caret)
+train_index <- createDataPartition(diabetes_prediction_dataset$gender,
+                                   p = 0.75,
+                                   list = FALSE)
+diabetes_prediction_dataset_train <- diabetes_prediction_dataset[train_index, ]
+diabetes_prediction_dataset_test <- diabetes_prediction_dataset[-train_index, ]
+
+
+train_control <- trainControl(method = "cv", number = 5)
+
+diabetes_prediction_dateset_model_lda <-
+  caret::train(`gender` ~ ., data = diabetes_prediction_dataset_train,
+               trControl = train_control, na.action = na.omit, method = "lda2",
+               metric = "Accuracy")
+
+
+str(diabetes_prediction_dataset$diabetes)
+
+
+diabetes_prediction_dataset$diabetes <- as.factor(diabetes_prediction_dataset$diabetes)
+
+
+set.seed(123)
+
+
+library(caret)
+
+train_control <- trainControl(method = "cv",
+                              number = 10,
+                              search = "grid",
+                              classProbs = TRUE,
+                              summaryFunction = multiClassSummary)
+
+
+library(randomForest)
+library(MLmetrics)
+rf_model <- train(gender~ ., data = diabetes_prediction_dataset_train, method = "rf", trControl = train_control)
+
+
+predictions <- predict(rf_model, newdata = diabetes_prediction_dataset_test)
+
+
+library(e1071)
+svm_model <- train(gender ~ ., data = diabetes_prediction_dataset_train, method = "svmRadial", trControl = train_control)
+
+
+train_control <- trainControl(method = "cv", number = 10)  
+
+
+models_list <- list(
+  Random_Forest = rf_model,
+  SVM = svm_model
+)
+
+
+results <- resamples(models_list, control = train_control)
+
+summary(results)
+```
+ HYPER-PARAMETER TUNING AND ENSEMBLES
+```{r}
+library(caret)
+library(randomForest)
+
+
+grid <- expand.grid(mtry = c(2, 4, 6, 8, 10)) 
+
+
+control <- trainControl(method = "cv", number = 5) 
+
+
+model_grid_search <- train(gender ~ ., data = diabetes_prediction_dataset_train, method = "rf",
+                           trControl = control, tuneGrid = grid)
+```
+ 
+
+
